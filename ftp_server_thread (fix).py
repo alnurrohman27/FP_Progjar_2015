@@ -133,6 +133,12 @@ class Client(threading.Thread):
                 self.retr()
             elif 'RNFR' in self.command:
                 self.rnfr()
+            elif 'LIST' in self.command:
+                self.LIST()
+            elif 'CWD' in self.command:
+                self.cwd.func()
+            elif 'PWD' in self.command:
+                self.pwd()
             else:
                 self.message = '500 Perintah tidak diketahui\r\n'
                 print 'Respon: ' + self.message.strip(), self.client.getpeername()
@@ -175,6 +181,63 @@ class Client(threading.Thread):
         self.id_exit = False
         self.client_data.close()
         self.client.close()
+
+    def LIST(self):
+        cmd = self.command.strip().split(' ')
+        i = len(cmd)
+        temp = ""
+        if i > 1:
+            checkFile = os.path.isfile(os.path.join(self.fullpath, cmd[1]))
+            checkDir = os.path.isdir(os.path.join(self.fullpath, cmd[1]))
+            if checkFile:
+                file_size = os.path.getsize(os.path.join(self.fullpath, cmd[1]))
+                print file_size
+                self.client.send(str (file_size))
+            elif checkDir:
+                dirs = os.listdir(os.path.join(self.base, cmd[1]))
+                i = 0
+                for x in dirs:
+                    temp += x
+                    temp += '\r\n'
+                    i+=1
+                if i > 0:
+                    print temp
+                    self.client.send(temp)
+                else:
+                    self.message = '550 Requested action not taken, file not found, or no access\r\n'
+                    print 'Respon: ' + self.message.strip(), self.client.getpeername()
+                    self.client.send(self.message)
+            else:
+                self.message = '550 Requested action not taken, file not found, or no access\r\n'
+                print 'Respon: ' + self.message.strip(), self.client.getpeername()
+                self.client.send(self.message)
+        else:
+            dirs = os.listdir(self.fullpath)
+            for x in dirs:
+               temp += x
+               temp += '\r\n'
+            print temp.strip()
+            self.client.send(temp)   
+        self.passive_mode()
+
+    def cwd_func(self):
+        self.cwd = self.command.strip().split(' ')[1]
+        checkDir = os.path.isdir(os.path.join(self.base, self.cwd))
+        if checkDir:
+            self.fullpath = os.path.join(self.base, self.cwd)
+            self.message = '257 Berhasil directory listing ' + self.cwd + '\r\n'
+        else:
+            self.message = '550 Requested action not taken, file not found or no access. This error usually results if the client user process does not have appropriate access permissions to perform the action, or if <name> was not found.\r\n'
+
+        print 'Respon: ' + self.message.strip(), self.client.getpeername()
+        self.client.send(self.message)
+        self.passive_mode()
+        
+    def pwd(self):
+        self.message = '257 ' + self.cwd + 'is current directory.\r\n'
+        print 'Respon: ' + self.message.strip(), self.client.getpeername()
+        self.client.send(self.message)
+        self.passive_mode()
         
     def stor(self):
         file_name = self.command.strip().partition(' ')[2]
@@ -287,6 +350,5 @@ class Client(threading.Thread):
 if __name__ == "__main__":
     s = Server()
     s.run()
-
 
 
