@@ -139,6 +139,10 @@ class Client(threading.Thread):
                 self.cwd.func()
             elif 'PWD' in self.command:
                 self.pwd()
+            elif 'DELE' in self.command:
+                self.dele()
+            elif 'HELP' in self.command:
+                self.helps()
             else:
                 self.message = '500 Perintah tidak diketahui\r\n'
                 print 'Respon: ' + self.message.strip(), self.client.getpeername()
@@ -221,7 +225,7 @@ class Client(threading.Thread):
         self.passive_mode()
 
     def cwd_func(self):
-        self.cwd = self.command.strip().partition(' ')[2]
+        self.cwd = self.command.strip().split(' ')[1]
         checkDir = os.path.isdir(os.path.join(self.base, self.cwd))
         if checkDir:
             self.fullpath = os.path.join(self.base, self.cwd)
@@ -238,6 +242,72 @@ class Client(threading.Thread):
         print 'Respon: ' + self.message.strip(), self.client.getpeername()
         self.client.send(self.message)
         self.passive_mode()
+
+    def dele(self):
+        self.cmd = self.command
+        self.chwd = self.cmd.strip().partition(' ')[2]
+        fn=os.path.join(self.fullpath, self.chwd)
+        self.allow_delete = os.path.isfile(fn)
+        if self.allow_delete == True:
+            os.remove(fn)
+            self.message = '250 File deleted.\r\n'
+            print 'Respon: ' + self.message.strip(), self.client.getpeername()
+            self.client.send(self.message)
+        else:
+            self.client.send('450 Not allowed.\r\n')
+        self.passive_mode()
+
+    def helps(self):
+        self.cmd  = self.command
+        self.chwd = self.cmd.strip().partition(' ')
+        i = len(self.chwd)
+        if i>1:
+            if self.chwd[2] == 'STOR':
+                self.message = '214 The following commands are recognized.\r\n' + 'Command used to UPLOAD.\r\nSyntax : STOR[space]filename\r\n' 
+                print 'Respon: ' + self.message, self.client.getpeername()
+                self.client.send(self.message)
+            elif self.chwd[2] == 'RETR':
+                self.message = '214 The following commands are recognized.\r\n' + 'Command used to DOWNLOAD.\r\nSyntax : RETR[space]filename\r\n'
+                print 'Respon: ' + self.message, self.client.getpeername()
+                self.client.send(self.message)
+            elif self.chwd[2] == 'MKD':
+                self.message = '214 The following commands are recognized.\r\n' + 'Command used to MAKE NEW DIRECTORY.\r\nSyntax : MKD[space]directoryname\r\n'
+                print 'Respon: ' + self.message, self.client.getpeername()
+                self.client.send(self.message)
+            elif self.chwd[2]== 'RMD':
+                self.message = '214 The following commands are recognized.\r\n' +  'Command used to DELETE DIRECTORY.\r\nSyntax : RMD[space]directoryname\r\n'
+                print 'Respon: ' + self.message, self.client.getpeername()
+                self.client.send(self.message)
+            elif self.chwd[2]== 'DELE':
+                self.message = '214 The following commands are recognized.\r\n' + 'Command used to DELETE FILE.\r\n\nSyntax : DELE[space]filename[.extension]\r\n'
+                print 'Respon: ' + self.message, self.client.getpeername()
+                self.client.send(self.message)
+            elif self.chwd[2]== 'LIST':
+                self.message = '214 The following commands are recognized.\r\n' + 'Command used to LIST DIRECTORIES AND FILES IN CURRENT LOCATION.\r\nSyntax : LIST\r\n'
+                print 'Respon: ' + self.message, self.client.getpeername()
+                self.client.send(self.message)
+            elif self.chwd[2]== 'PWD':
+                self.message = '214 The following commands are recognized.\r\n' + 'Command used to SHOW WORKING DIRECTORY.\r\nSyntax : PWD\r\n'
+                print 'Respon: ' + self.message, self.client.getpeername()
+                self.client.send(self.message)
+            elif self.chwd[2]== 'CWD':
+                self.message = '214 The following commands are recognized.\r\n' + 'Command used to CHANGE WORKING DIRECTORY.\r\nSyntax : CWD[space][/]Directory\r\n'
+                print 'Respon: ' + self.message, self.client.getpeername()
+                self.client.send(self.message)
+            elif self.chwd[2]== 'RNTO':
+                self.message = '214 The following commands are recognized.\r\n' + 'Command used to LIST DIRECTORIES AND FILES IN CURRENT LOCATION.\r\nSyntax : RNTO[space]directory name/filename[.extension/non-extension]\r\n'
+                print 'Respon: ' + self.message, self.client.getpeername()
+                self.client.send(self.message)
+            else:
+                self.message = '214 The following commands are not recognized in our library.\r\n'
+                print 'Respon: ' + self.message.strip(), self.client.getpeername()
+                self.client.send(self.message)
+        else:
+            self.message = '214 The following commands are recognized (* => not implemented).\r\n'
+            msg = 'PWD      ==> Menunjukkan direktori sekarang\r\nLIST     ==> Menunjukkan folder dan file di dalam direktori sekarang\r\nCWD      ==> Mengubah direktori sekarang\r\nMKD      ==> Membuat direktori baru\r\nRMD      ==> Menghapus direktori\r\nRNTO     ==> Mengubah nama direktori atau file\r\nDELE     ==> Menghapus file\r\nDOWNLOAD ==> Mendownload file\r\nUPLOAD   ==> Mengupload file'
+            print 'Respon: ' + self.message + msg
+            self.client.sendall(self.message + msg)
+        self.passive_mode()    
         
     def stor(self):
         file_name = self.command.strip().partition(' ')[2]
