@@ -143,6 +143,10 @@ class Client(threading.Thread):
                 self.dele()
             elif 'HELP' in self.command:
                 self.helps()
+            elif 'MKD' in self.command:
+                self.mkd()
+            elif 'RMD' in self.command:
+                self.rmd()
             else:
                 self.message = '500 Perintah tidak diketahui\r\n'
                 print 'Respon: ' + self.message.strip(), self.client.getpeername()
@@ -307,7 +311,43 @@ class Client(threading.Thread):
             msg = 'PWD      ==> Menunjukkan direktori sekarang\r\nLIST     ==> Menunjukkan folder dan file di dalam direktori sekarang\r\nCWD      ==> Mengubah direktori sekarang\r\nMKD      ==> Membuat direktori baru\r\nRMD      ==> Menghapus direktori\r\nRNTO     ==> Mengubah nama direktori atau file\r\nDELE     ==> Menghapus file\r\nDOWNLOAD ==> Mendownload file\r\nUPLOAD   ==> Mengupload file'
             print 'Respon: ' + self.message + msg
             self.client.sendall(self.message + msg)
-        self.passive_mode()    
+        self.passive_mode()
+
+    def mkd(self):
+        self.cmd = self.command
+        self.chwd = self.cmd.strip().partition(' ')[2]
+        dn=os.path.join(self.fullpath, self.chwd)
+        self.allow_make = os.path.isdir(dn)
+        if self.allow_make:
+            self.message = '550 - Requested action not taken, file not found or no access.This error usually results if the client user process does not have appropriate access permissions to perform the action.\r\n'
+            print 'Respon: ' + self.message.strip(), self.client.getpeername()
+            self.client.send(self.message)
+        else:
+            os.mkdir(dn)
+            self.message = '250 - The command was successful.\r\n'
+            print 'Respon: ' + self.message.strip(), self.client.getpeername()
+            self.client.send(self.message)
+            
+        self.passive_mode()
+
+    def rmd(self):
+        self.cmd = self.command
+        self.chwd = self.cmd.strip().partition(' ')[2]
+        dn=os.path.join(self.fullpath, self.chwd)
+        self.allow_delete = os.path.isdir(dn)
+        if self.allow_delete == True:
+            os.rmdir(dn)
+            self.message = '250 - The command was successful.\r\n'
+            print 'Respon: ' + self.message.strip(), self.client.getpeername()
+            self.client.send(self.message)
+
+        else:
+            self.message = '550 - Requested action not taken, file not found or no access. This error usually results if the client user process does not have appropriate access permissions to perform the action, or if <name> was not found.\r\n'
+            print 'Respon: ' + self.message.strip(), self.client.getpeername()
+            self.client.send(self.message)
+        self.passive_mode()
+
+        
         
     def stor(self):
         file_name = self.command.strip().partition(' ')[2]
