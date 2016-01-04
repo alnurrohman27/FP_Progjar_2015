@@ -21,7 +21,7 @@ class Server:
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((self.host,self.port))
         self.server.listen(5)
-        print 'Server FTP Siap'
+        print 'Server FTP Ready'
         
     #menu yang akan dijalankan pertama kali saat server dimulai
     def run(self):
@@ -80,21 +80,21 @@ class Client(threading.Thread):
         print 'Perintah: ' + self.command.strip(), self.client.getpeername()
         if 'USER Adian\r\n' in self.command:
             self.nama_user = self.command.split(' ')
-            self.login_msg = '331 Silahkan masukan password untuk ' + self.nama_user[1] + '\r\n'
+            self.login_msg = '331 Please input Password for ' + self.nama_user[1] + '\r\n'
             print 'Respon: ' + self.login_msg.strip(), self.client.getpeername()
             self.client.send(self.login_msg)
 
             self.command = self.client.recv(self.size)
 
             if self.command == 'PASS 1234\r\n':
-                self.login_msg = '230 Anda masuk\r\n'
+                self.login_msg = '230 You logged in\r\n'
                 self.client.send(self.login_msg)
                 print 'Respon: ' + self.login_msg.strip(), self.client.getpeername()
 
                 self.menu_log_in()
                               
             else:
-                self.login_msg = 'Username atau password salah\r\n'
+                self.login_msg = 'Incorrect Username or Password\r\n'
                 self.client.send(self.login_msg)
                 print 'Respon: ' + self.login_msg.strip(), self.client.getpeername()
                 self.cek_user()
@@ -115,14 +115,14 @@ class Client(threading.Thread):
 
         if 'TYPE' in self.command:
             self.code_type = self.command.split(' ')[-1].split('\r\n')
-            self.message = '220 TYPE diubah ke ', self.code_type
+            self.message = '220 TYPE changed into ', self.code_type
             self.message += '\r\n'
             print 'Respon: ' + self.message.strip(), self.client.getpeername()
             self.client.send(self.message)
             self.passive_mode()
 
         elif self.command == 'QUIT\r\n':
-            self.login_msg = '221 Anda keluar\r\n'
+            self.login_msg = '221 You logged out\r\n'
             self.client.send(self.login_msg)
             print 'Respon: ' + self.login_msg.strip(), self.client.getpeername()
             self.stop()
@@ -148,7 +148,7 @@ class Client(threading.Thread):
             elif 'RMD' in self.command:
                 self.rmd()
             else:
-                self.message = '500 Perintah tidak diketahui\r\n'
+                self.message = '500 Unknown command\r\n'
                 print 'Respon: ' + self.message.strip(), self.client.getpeername()
                 self.client.send(self.message)
                 self.passive_mode()
@@ -159,7 +159,7 @@ class Client(threading.Thread):
         print 'Perintah: ' + self.command.strip(), self.client.getpeername()
 
         if self.command == 'PASV\r\n':
-            self.message = '227 Masuk ke mode pasif\r\n'
+            self.message = '227 Entering Passive Mode\r\n'
             print 'Respon: ' + self.message.strip(), self.client.getpeername()
             self.client.send(self.message)
             ftp_data = ('localhost', 42728)
@@ -173,13 +173,13 @@ class Client(threading.Thread):
             self.passive_mode()
                                                                                             
         elif self.command == 'QUIT\r\n':
-            self.login_msg = '221 Anda keluar\r\n'
+            self.login_msg = '221 You logged out\r\n'
             self.client.send(self.login_msg)
             print 'Respon: ' + self.login_msg.strip(), self.client.getpeername()
             self.stop()
             #self.input_socket.remove(self.sock)
         else:
-            self.message = '500 Perintah tidak diketahui\r\n'
+            self.message = '500 Unknown Command\r\n'
             print 'Respon: ' + self.message.strip(), self.client.getpeername()
             self.client.send(self.message)
 
@@ -233,7 +233,7 @@ class Client(threading.Thread):
         checkDir = os.path.isdir(os.path.join(self.base, self.cwd))
         if checkDir:
             self.fullpath = os.path.join(self.base, self.cwd)
-            self.message = '257 Berhasil directory listing ' + self.cwd + '\r\n'
+            self.message = '257 Directory listing succeeds ' + self.cwd + '\r\n'
         else:
             self.message = '550 Requested action not taken, file not found or no access. This error usually results if the client user process does not have appropriate access permissions to perform the action, or if <name> was not found.\r\n'
 
@@ -308,7 +308,7 @@ class Client(threading.Thread):
                 self.client.send(self.message)
         else:
             self.message = '214 The following commands are recognized (* => not implemented).\r\n'
-            msg = 'PWD      ==> Menunjukkan direktori sekarang\r\nLIST     ==> Menunjukkan folder dan file di dalam direktori sekarang\r\nCWD      ==> Mengubah direktori sekarang\r\nMKD      ==> Membuat direktori baru\r\nRMD      ==> Menghapus direktori\r\nRNTO     ==> Mengubah nama direktori atau file\r\nDELE     ==> Menghapus file\r\nDOWNLOAD ==> Mendownload file\r\nUPLOAD   ==> Mengupload file'
+            msg = 'PWD      ==> Display current directory\r\nLIST     ==> Display folders and files inside current directory\r\nCWD      ==> Change current directory\r\nMKD      ==> Create new directory\r\nRMD      ==> Delete directory\r\nRNTO     ==> Change directoryname or filename\r\nDELE     ==> Delete file\r\nDOWNLOAD ==> Download file\r\nUPLOAD   ==> Upload File'
             print 'Respon: ' + self.message + msg
             self.client.sendall(self.message + msg)
         self.passive_mode()
@@ -368,7 +368,7 @@ class Client(threading.Thread):
                     data = self.client_data.recv(self.size)
                     berkas.write(data)
                     file_size -= len(data)
-            self.message = '226 Berkas ' + file_name + ' berhasil dikirim\r\n'
+            self.message = '226 File ' + file_name + ' is sent successfully\r\n'
             print 'Respon: ' + self.message.strip(), self.client.getpeername()
             self.client.send(self.message)
         else:
@@ -397,7 +397,7 @@ class Client(threading.Thread):
                     data += berkas.read()
                     file_size -= len(data)
             self.client_data.sendall(data)
-            self.message = '226 Berkas ' + file_name + ' berhasil dikirim\r\n'
+            self.message = '226 File ' + file_name + ' is sent successfully\r\n'
             print 'Respon: ' + self.message.strip(), self.client.getpeername()
             self.client.send(self.message)
             
@@ -414,7 +414,7 @@ class Client(threading.Thread):
         checkFile = os.path.isfile(path)
         
         if checkDir:
-            self.message = '350 Siap untuk RNTO directory\r\n'
+            self.message = '350 Ready for RNTO directory\r\n'
             print 'Respon: ' + self.message.strip(), self.client.getpeername()
             self.client.send(self.message)
             self.command = self.client.recv(self.size)
@@ -432,7 +432,7 @@ class Client(threading.Thread):
             self.passive_mode()
                 
         elif checkFile:
-            self.message = '350 Siap untuk RNTO file\r\n'
+            self.message = '350 Ready for RNTO file\r\n'
             print 'Respon: ' + self.message.strip(), self.client.getpeername()
             self.client.send(self.message)
             self.command = self.client.recv(self.size)
@@ -449,7 +449,7 @@ class Client(threading.Thread):
                 self.client.send(self.message)
             self.passive_mode()
         else:
-            self.message = '501 Perintah tidak diketahui\r\n'
+            self.message = '501 Unknown command\r\n'
             print 'Respon: ' + self.message.strip(), self.client.getpeername()
             self.client.send(self.message)
 
