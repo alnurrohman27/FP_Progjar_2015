@@ -221,7 +221,7 @@ class Client(threading.Thread):
         self.passive_mode()
 
     def cwd_func(self):
-        self.cwd = self.command.strip().split(' ')[1]
+        self.cwd = self.command.strip().partition(' ')[2]
         checkDir = os.path.isdir(os.path.join(self.base, self.cwd))
         if checkDir:
             self.fullpath = os.path.join(self.base, self.cwd)
