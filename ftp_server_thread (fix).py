@@ -4,6 +4,9 @@ import sys
 import threading
 import os
 
+username = 'test'
+password = '12345'
+
 #Class untuk Server
 class Server:
     #spesifikasi dari socket ftp server
@@ -63,6 +66,7 @@ class Client(threading.Thread):
         self.cwd = '/'
         self.fullpath = self.base
         self.pasv_status = False
+        self.code_type = 'I'
 
     #menu yang akan jalan pertama kali saat client berhasil terhubung    
     def run(self):
@@ -77,16 +81,18 @@ class Client(threading.Thread):
     #menu untuk pengecekan user           
     def cek_user(self):
         self.command = self.client.recv(self.size)
+        name = self.command.strip().partition(' ')[2]
         print 'Perintah: ' + self.command.strip(), self.client.getpeername()
-        if 'USER Adian\r\n' in self.command:
+        if name == username:
             self.nama_user = self.command.split(' ')
             self.login_msg = '331 Please input Password for ' + self.nama_user[1] + '\r\n'
             print 'Respon: ' + self.login_msg.strip(), self.client.getpeername()
             self.client.send(self.login_msg)
 
             self.command = self.client.recv(self.size)
+            passw = self.command.strip().partition(' ')[2]
 
-            if self.command == 'PASS 1234\r\n':
+            if passw == password:
                 self.login_msg = '230 You logged in\r\n'
                 self.client.send(self.login_msg)
                 print 'Respon: ' + self.login_msg.strip(), self.client.getpeername()
@@ -112,8 +118,9 @@ class Client(threading.Thread):
     def passive_mode(self):
         self.command = self.client.recv(self.size)
         print 'Perintah: ' + self.command.strip(), self.client.getpeername()
+        cmd = self.command.strip().partition(' ')[0]
 
-        if 'TYPE' in self.command:
+        if cmd == 'TYPE':
             self.code_type = self.command.split(' ')[-1].split('\r\n')
             self.message = '220 TYPE changed into ', self.code_type
             self.message += '\r\n'
@@ -121,37 +128,36 @@ class Client(threading.Thread):
             self.client.send(self.message)
             self.passive_mode()
 
-        elif self.command == 'QUIT\r\n':
+        elif cmd == 'QUIT':
             self.login_msg = '221 You logged out\r\n'
             self.client.send(self.login_msg)
             print 'Respon: ' + self.login_msg.strip(), self.client.getpeername()
             self.stop()
+        elif cmd == 'STOR':
+            self.stor()
+        elif cmd == 'RETR':
+            self.retr()
+        elif cmd == 'RNFR':
+            self.rnfr()
+        elif cmd == 'LIST':
+            self.LIST()
+        elif cmd == 'CWD':
+            self.cwd_func()
+        elif cmd == 'PWD':
+            self.pwd()
+        elif cmd == 'DELE':
+            self.dele()
+        elif cmd == 'HELP':
+            self.helps()
+        elif cmd == 'MKD':
+            self.mkd()
+        elif cmd == 'RMD':
+            self.rmd()
         else:
-            if 'STOR' in self.command:
-                self.stor()
-            elif 'RETR' in self.command:
-                self.retr()
-            elif 'RNFR' in self.command:
-                self.rnfr()
-            elif 'LIST' in self.command:
-                self.LIST()
-            elif 'CWD' in self.command:
-                self.cwd.func()
-            elif 'PWD' in self.command:
-                self.pwd()
-            elif 'DELE' in self.command:
-                self.dele()
-            elif 'HELP' in self.command:
-                self.helps()
-            elif 'MKD' in self.command:
-                self.mkd()
-            elif 'RMD' in self.command:
-                self.rmd()
-            else:
-                self.message = '500 Unknown command\r\n'
-                print 'Respon: ' + self.message.strip(), self.client.getpeername()
-                self.client.send(self.message)
-                self.passive_mode()
+            self.message = '500 Unknown command\r\n'
+            print 'Respon: ' + self.message.strip(), self.client.getpeername()
+            self.client.send(self.message)
+            self.passive_mode()
 
     #menu untuk user yang apabila telah berhasil login
     def menu_log_in(self):
@@ -229,11 +235,12 @@ class Client(threading.Thread):
         self.passive_mode()
 
     def cwd_func(self):
-        self.cwd = self.command.strip().split(' ')[1]
-        checkDir = os.path.isdir(os.path.join(self.base, self.cwd))
+        ccwd = self.command.strip().partition(' ')[2]
+        checkDir = os.path.isdir(os.path.join(self.base, ccwd))
         if checkDir:
             self.fullpath = os.path.join(self.base, self.cwd)
             self.message = '257 Directory listing succeeds ' + self.cwd + '\r\n'
+            self.cwd = ccwd
         else:
             self.message = '550 Requested action not taken, file not found or no access. This error usually results if the client user process does not have appropriate access permissions to perform the action, or if <name> was not found.\r\n'
 
@@ -242,7 +249,7 @@ class Client(threading.Thread):
         self.passive_mode()
         
     def pwd(self):
-        self.message = '257 ' + self.cwd + 'is current directory.\r\n'
+        self.message = '257 ' + self.cwd + ' is current directory.\r\n'
         print 'Respon: ' + self.message.strip(), self.client.getpeername()
         self.client.send(self.message)
         self.passive_mode()
@@ -264,53 +271,53 @@ class Client(threading.Thread):
     def helps(self):
         self.cmd  = self.command
         self.chwd = self.cmd.strip().partition(' ')
-        i = len(self.chwd)
-        if i>1:
-            if self.chwd[2] == 'STOR':
-                self.message = '214 The following commands are recognized.\r\n' + 'Command used to UPLOAD.\r\nSyntax : STOR[space]filename\r\n' 
-                print 'Respon: ' + self.message, self.client.getpeername()
-                self.client.send(self.message)
-            elif self.chwd[2] == 'RETR':
-                self.message = '214 The following commands are recognized.\r\n' + 'Command used to DOWNLOAD.\r\nSyntax : RETR[space]filename\r\n'
-                print 'Respon: ' + self.message, self.client.getpeername()
-                self.client.send(self.message)
-            elif self.chwd[2] == 'MKD':
-                self.message = '214 The following commands are recognized.\r\n' + 'Command used to MAKE NEW DIRECTORY.\r\nSyntax : MKD[space]directoryname\r\n'
-                print 'Respon: ' + self.message, self.client.getpeername()
-                self.client.send(self.message)
-            elif self.chwd[2]== 'RMD':
-                self.message = '214 The following commands are recognized.\r\n' +  'Command used to DELETE DIRECTORY.\r\nSyntax : RMD[space]directoryname\r\n'
-                print 'Respon: ' + self.message, self.client.getpeername()
-                self.client.send(self.message)
-            elif self.chwd[2]== 'DELE':
-                self.message = '214 The following commands are recognized.\r\n' + 'Command used to DELETE FILE.\r\n\nSyntax : DELE[space]filename[.extension]\r\n'
-                print 'Respon: ' + self.message, self.client.getpeername()
-                self.client.send(self.message)
-            elif self.chwd[2]== 'LIST':
-                self.message = '214 The following commands are recognized.\r\n' + 'Command used to LIST DIRECTORIES AND FILES IN CURRENT LOCATION.\r\nSyntax : LIST\r\n'
-                print 'Respon: ' + self.message, self.client.getpeername()
-                self.client.send(self.message)
-            elif self.chwd[2]== 'PWD':
-                self.message = '214 The following commands are recognized.\r\n' + 'Command used to SHOW WORKING DIRECTORY.\r\nSyntax : PWD\r\n'
-                print 'Respon: ' + self.message, self.client.getpeername()
-                self.client.send(self.message)
-            elif self.chwd[2]== 'CWD':
-                self.message = '214 The following commands are recognized.\r\n' + 'Command used to CHANGE WORKING DIRECTORY.\r\nSyntax : CWD[space][/]Directory\r\n'
-                print 'Respon: ' + self.message, self.client.getpeername()
-                self.client.send(self.message)
-            elif self.chwd[2]== 'RNTO':
-                self.message = '214 The following commands are recognized.\r\n' + 'Command used to LIST DIRECTORIES AND FILES IN CURRENT LOCATION.\r\nSyntax : RNTO[space]directory name/filename[.extension/non-extension]\r\n'
-                print 'Respon: ' + self.message, self.client.getpeername()
-                self.client.send(self.message)
-            else:
-                self.message = '214 The following commands are not recognized in our library.\r\n'
-                print 'Respon: ' + self.message.strip(), self.client.getpeername()
-                self.client.send(self.message)
-        else:
+        
+        if self.chwd[2] == 'STOR':
+            self.message = '214 The following commands are recognized.\r\n' + 'Command used to UPLOAD.\r\nSyntax : STOR[space]filename\r\n' 
+            print 'Respon: ' + self.message, self.client.getpeername()
+            self.client.send(self.message)
+        elif self.chwd[2] == 'RETR':
+            self.message = '214 The following commands are recognized.\r\n' + 'Command used to DOWNLOAD.\r\nSyntax : RETR[space]filename\r\n'
+            print 'Respon: ' + self.message, self.client.getpeername()
+            self.client.send(self.message)
+        elif self.chwd[2] == 'MKD':
+            self.message = '214 The following commands are recognized.\r\n' + 'Command used to MAKE NEW DIRECTORY.\r\nSyntax : MKD[space]directoryname\r\n'
+            print 'Respon: ' + self.message, self.client.getpeername()
+            self.client.send(self.message)
+        elif self.chwd[2]== 'RMD':
+            self.message = '214 The following commands are recognized.\r\n' +  'Command used to DELETE DIRECTORY.\r\nSyntax : RMD[space]directoryname\r\n'
+            print 'Respon: ' + self.message, self.client.getpeername()
+            self.client.send(self.message)
+        elif self.chwd[2]== 'DELE':
+            self.message = '214 The following commands are recognized.\r\n' + 'Command used to DELETE FILE.\r\n\nSyntax : DELE[space]filename[.extension]\r\n'
+            print 'Respon: ' + self.message, self.client.getpeername()
+            self.client.send(self.message)
+        elif self.chwd[2]== 'LIST':
+            self.message = '214 The following commands are recognized.\r\n' + 'Command used to LIST DIRECTORIES AND FILES IN CURRENT LOCATION.\r\nSyntax : LIST\r\n'
+            print 'Respon: ' + self.message, self.client.getpeername()
+            self.client.send(self.message)
+        elif self.chwd[2]== 'PWD':
+            self.message = '214 The following commands are recognized.\r\n' + 'Command used to SHOW WORKING DIRECTORY.\r\nSyntax : PWD\r\n'
+            print 'Respon: ' + self.message, self.client.getpeername()
+            self.client.send(self.message)
+        elif self.chwd[2]== 'CWD':
+            self.message = '214 The following commands are recognized.\r\n' + 'Command used to CHANGE WORKING DIRECTORY.\r\nSyntax : CWD[space][/]Directory\r\n'
+            print 'Respon: ' + self.message, self.client.getpeername()
+            self.client.send(self.message)
+        elif self.chwd[2]== 'RNTO':
+            self.message = '214 The following commands are recognized.\r\n' + 'Command used to LIST DIRECTORIES AND FILES IN CURRENT LOCATION.\r\nSyntax : RNTO[space]directory name/filename[.extension/non-extension]\r\n'
+            print 'Respon: ' + self.message, self.client.getpeername()
+            self.client.send(self.message)
+        elif self.chwd[2] == '':
             self.message = '214 The following commands are recognized (* => not implemented).\r\n'
             msg = 'PWD      ==> Display current directory\r\nLIST     ==> Display folders and files inside current directory\r\nCWD      ==> Change current directory\r\nMKD      ==> Create new directory\r\nRMD      ==> Delete directory\r\nRNTO     ==> Change directoryname or filename\r\nDELE     ==> Delete file\r\nDOWNLOAD ==> Download file\r\nUPLOAD   ==> Upload File'
             print 'Respon: ' + self.message + msg
             self.client.sendall(self.message + msg)
+        else:
+            self.message = '214 The following commands are not recognized in our library.\r\n'
+            print 'Respon: ' + self.message.strip(), self.client.getpeername()
+            self.client.send(self.message)
+        
         self.passive_mode()
 
     def mkd(self):
@@ -408,7 +415,7 @@ class Client(threading.Thread):
         self.passive_mode()
         
     def rnfr(self):
-        file_name = self.command.strip().split(' ')[1]
+        file_name = self.command.strip().partition(' ')[2]
         path = os.path.join(self.fullpath, file_name)
         checkDir = os.path.isdir(path)
         checkFile = os.path.isfile(path)
