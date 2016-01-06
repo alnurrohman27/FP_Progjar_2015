@@ -14,12 +14,13 @@ while True:
     command = raw_input()
     command += '\r\n'
     client_socket.send(command)
+    cmd = command.strip().partition(' ')[0]
     
-    if command == 'QUIT\r\n':
+    if cmd == 'QUIT':
         user_msg = client_socket.recv(10000)
         print user_msg.strip(), client_socket.getpeername()
         break
-    elif 'PASV' in command:
+    elif cmd == 'PASV':
         if pasv_status == False:
             ftp_data = ('localhost', 42728)
             client_socket_data = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -27,7 +28,7 @@ while True:
             pasv_status = True
         user_msg = client_socket.recv(10000)
         print user_msg.strip(), client_socket_data.getpeername()
-    elif 'STOR' in command:
+    elif cmd == 'STOR':
         file_name = command.strip().partition(' ')[2]
         local = os.getcwd()
         path = os.path.join(local, 'download')
@@ -50,7 +51,7 @@ while True:
             
         user_msg = client_socket.recv(4096)
         print user_msg.strip(), client_socket.getpeername()
-    elif 'RETR' in command:
+    elif cmd == 'RETR':
         file_name = command.strip().partition(' ')[2]
         local = os.getcwd()
         path = os.path.join(local, 'download')
@@ -72,7 +73,7 @@ while True:
                     
         user_msg = client_socket.recv(4096)
         print user_msg.strip(), client_socket.getpeername()
-    elif 'RNFR' in command:
+    elif cmd == 'RNFR':
         user_msg = client_socket.recv(10000)
         print user_msg.strip(), client_socket.getpeername()
 
@@ -90,6 +91,4 @@ while True:
 
 
 client_socket.close()
-
-print 'Test'
 

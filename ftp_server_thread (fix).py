@@ -75,14 +75,14 @@ class Client(threading.Thread):
         
         
     def welcome_message(self):
-        self.welcome_msg = '220-FTP Server Versi 1.0\r\nRespon: 220-Ditulis oleh Kelompok XXX\r\n'
+        self.welcome_msg = '220-FTP Server Versi 1.0\r\nRespon: 220-Written by Kelompok XXX\r\n'
         print 'Respon: ' + self.welcome_msg.strip(), self.client.getpeername()
         self.client.send(self.welcome_msg)
     #menu untuk pengecekan user           
     def cek_user(self):
         self.command = self.client.recv(self.size)
         name = self.command.strip().partition(' ')[2]
-        print 'Perintah: ' + self.command.strip(), self.client.getpeername()
+        print 'Command: ' + self.command.strip(), self.client.getpeername()
         if name == username:
             self.nama_user = self.command.split(' ')
             self.login_msg = '331 Please input Password for ' + self.nama_user[1] + '\r\n'
@@ -105,10 +105,10 @@ class Client(threading.Thread):
                 print 'Respon: ' + self.login_msg.strip(), self.client.getpeername()
                 self.cek_user()
                 #print 'E'
-                            
+            
         else:
-            self.message = '500 Perintah tidak diketahui\r\n'
-            self.login_msg = '530 Silahkan masuk terlebih dahulu'
+            self.message = '500 Unknown command\r\n'
+            self.login_msg = '530 Please login first'
             print 'Respon: ' + self.message.strip(), self.client.getpeername()
             print 'Respon: ' + self.login_msg.strip(), self.client.getpeername()
             self.client.sendall(self.message + self.login_msg)
@@ -117,7 +117,7 @@ class Client(threading.Thread):
     #menu untuk masuk ke mode pasif    
     def passive_mode(self):
         self.command = self.client.recv(self.size)
-        print 'Perintah: ' + self.command.strip(), self.client.getpeername()
+        print 'Command: ' + self.command.strip(), self.client.getpeername()
         cmd = self.command.strip().partition(' ')[0]
 
         if cmd == 'TYPE':
@@ -162,7 +162,7 @@ class Client(threading.Thread):
     #menu untuk user yang apabila telah berhasil login
     def menu_log_in(self):
         self.command = self.client.recv(self.size)
-        print 'Perintah: ' + self.command.strip(), self.client.getpeername()
+        print 'Command: ' + self.command.strip(), self.client.getpeername()
 
         if self.command == 'PASV\r\n':
             self.message = '227 Entering Passive Mode\r\n'
@@ -236,14 +236,26 @@ class Client(threading.Thread):
 
     def cwd_func(self):
         ccwd = self.command.strip().partition(' ')[2]
-        checkDir = os.path.isdir(os.path.join(self.base, ccwd))
+        slash = ccwd.partition('/')
+        ccwd = slash[2]
+        checkDir = os.path.isdir(os.path.join(self.fullpath, ccwd))
+        #print slash
         if checkDir:
-            self.fullpath = os.path.join(self.base, self.cwd)
+            if slash[1] == '/':
+                self.cwd = ccwd
+                self.fullpath += ccwd
+                self.message = '257 Directory listing succeeds ' + self.cwd + '\r\n'
+            else:
+                self.message = '550 Requested action not taken, file not found, error syntax or no access. This error usually results if the client user process does not have appropriate access permissions to perform the action, or if <name> was not found.\r\n'
+            
+        elif ccwd == '/':
+            self.fullpath = os.path.getcwd()
             self.message = '257 Directory listing succeeds ' + self.cwd + '\r\n'
             self.cwd = ccwd
         else:
             self.message = '550 Requested action not taken, file not found or no access. This error usually results if the client user process does not have appropriate access permissions to perform the action, or if <name> was not found.\r\n'
 
+        #print 'Full path: ' + self.fullpath
         print 'Respon: ' + self.message.strip(), self.client.getpeername()
         self.client.send(self.message)
         self.passive_mode()
@@ -310,9 +322,13 @@ class Client(threading.Thread):
             self.client.send(self.message)
         elif self.chwd[2] == '':
             self.message = '214 The following commands are recognized (* => not implemented).\r\n'
-            msg = 'PWD      ==> Display current directory\r\nLIST     ==> Display folders and files inside current directory\r\nCWD      ==> Change current directory\r\nMKD      ==> Create new directory\r\nRMD      ==> Delete directory\r\nRNTO     ==> Change directoryname or filename\r\nDELE     ==> Delete file\r\nDOWNLOAD ==> Download file\r\nUPLOAD   ==> Upload File'
+            msg = 'PWD      ==> Display current directory\r\nLIST     ==> Display folders and files inside current directory\r\nCWD      ==> Change current directory\r\nMKD      ==> Create new directory\r\nRMD      ==> Delete directory\r\nRNTO     ==> Change directoryname or filename\r\nDELE     ==> Delete file\r\nRETR ==> Download file\r\nSTOR   ==> Upload File'
             print 'Respon: ' + self.message + msg
             self.client.sendall(self.message + msg)
+        elif self.chwd[2] == 'PASV':
+            self.message = '214 The following commands are recognized.\r\n' + 'Command used to ENTER PASSIVE MODE.\r\nSyntax : PASV\r\n'
+            print 'Respon: ' + self.message, self.client.getpeername()
+            self.client.send(self.message)
         else:
             self.message = '214 The following commands are not recognized in our library.\r\n'
             print 'Respon: ' + self.message.strip(), self.client.getpeername()
